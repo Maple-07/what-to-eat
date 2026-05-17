@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>byf今天吃什么 🍽️</title>
+<style>
+/* ====== Reset & Base ====== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  background: linear-gradient(135deg, #dce8f0 0%, #b8d4e3 50%, #c2d0e0 100%);
+  min-height: 100vh;
+  color: #333;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ====== Header ====== */
+.header {
+  text-align: center;
+  padding: 18px 0 8px;
+  flex-shrink: 0;
+}
+.header h1 { font-size: 1.8rem; font-weight: 800; color: #fff; text-shadow: 0 2px 8px rgba(0,0,0,.15); }
+.header p { color: rgba(255,255,255,.8); font-size: .9rem; margin-top: 4px; }
+
+/* ====== Pages ====== */
+.page-container {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 16px 100px;
+}
+.page { display: none; width: 100%; max-width: 480px; }
+.page.active { display: block; }
+
+/* ====== Panel ====== */
+.panel {
+  background: rgba(255,255,255,.92);
+  backdrop-filter: blur(10px);
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 8px 32px rgba(0,0,0,.1);
+}
+.panel h2 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #a3c4d6;
+  color: #6a8fa8;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ====== Category Tags ====== */
+.category-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 14px;
+  justify-content: center;
+}
+.cat-tag {
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: .78rem;
+  cursor: pointer;
+  border: 1.5px solid #ddd;
+  background: #fff;
+  transition: all .2s;
+  user-select: none;
+}
+.cat-tag.active { background: #6a8fa8; color: #fff; border-color: #6a8fa8; }
+.cat-tag:hover:not(.active) { border-color: #6a8fa8; }
+
+/* ====== Wheel ====== */
+.wheel-page {
+  text-align: center;
+}
+.wheel-container {
+  position: relative;
+  display: inline-block;
+  margin-bottom: 16px;
+}
+.wheel-pointer {
+  position: absolute;
+  top: -14px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 16px solid transparent;
+  border-right: 16px solid transparent;
+  border-top: 28px solid #6a8fa8;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,.3));
+  z-index: 10;
+}
+canvas { display: block; border-radius: 50%; box-shadow: 0 8px 32px rgba(0,0,0,.15); }
+.spin-btn {
+  padding: 14px 60px;
+  font-size: 1.2rem;
+  font-weight: 800;
+  border: none;
+  border-radius: 50px;
+  background: linear-gradient(135deg, #6a8fa8, #a3c4d6);
+  color: #fff;
+  cursor: pointer;
+  transition: all .3s;
+  box-shadow: 0 4px 15px rgba(106,143,168,.4);
+  letter-spacing: 2px;
+}
+.spin-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(106,143,168,.5); }
+.spin-btn:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+.wheel-info { color: rgba(255,255,255,.85); font-size: .85rem; margin-top: 10px; }
+
+/* ====== Forms & Buttons ====== */
+.add-form { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+.add-form .row { display: flex; gap: 8px; }
+.add-form input, .add-form select {
+  flex: 1;
+  padding: 8px 10px;
+  border: 1.5px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: .85rem;
+  outline: none;
+  transition: border .2s;
+}
+.add-form input:focus, .add-form select:focus { border-color: #6a8fa8; }
+.add-form .nutri-row input { flex: 1; min-width: 0; }
+.btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 8px;
+  font-size: .85rem;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all .2s;
+}
+.btn-primary { background: #6a8fa8; color: #fff; }
+.btn-primary:hover { background: #52758c; }
+.btn-secondary { background: #edf2f5; color: #555; }
+.btn-secondary:hover { background: #dce5eb; }
+.btn-sm { padding: 4px 10px; font-size: .75rem; }
+.btn-danger { background: #c4a0a8; color: #fff; }
+.btn-danger:hover { background: #a8848e; }
+.import-row { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+.import-row .btn { flex: 1; min-width: 80px; font-size: .78rem; }
+
+/* ====== Dish List ====== */
+.dish-list { display: flex; flex-direction: column; gap: 6px; max-height: 280px; overflow-y: auto; }
+.dish-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: #fafafa;
+  border: 1px solid #eee;
+  font-size: .85rem;
+  gap: 8px;
+}
+.dish-item .info { flex: 1; min-width: 0; }
+.dish-item .name { font-weight: 600; display: flex; align-items: center; gap: 4px; }
+.dish-item .meta { font-size: .72rem; color: #999; margin-top: 2px; }
+.dish-item .cat-badge {
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: .7rem;
+  color: #fff;
+  white-space: nowrap;
+}
+.dish-item .actions { display: flex; gap: 4px; }
+.empty-hint { text-align: center; color: #bbb; padding: 20px; font-size: .85rem; }
+
+/* ====== History ====== */
+.history-list { max-height: 400px; overflow-y: auto; }
+.history-group { margin-bottom: 14px; }
+.history-date {
+  font-size: .85rem;
+  font-weight: 700;
+  color: #6a8fa8;
+  margin-bottom: 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px dashed #eee;
+}
+.history-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: .85rem;
+}
+.history-item .emoji { font-size: 1.2rem; }
+.today-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: #d8e8f2;
+  color: #6a8fa8;
+  font-size: .7rem;
+  font-weight: 600;
+}
+
+/* ====== Modal ====== */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  animation: fadeIn .3s;
+}
+.modal {
+  background: #fff;
+  border-radius: 20px;
+  padding: 30px;
+  text-align: center;
+  max-width: 380px;
+  width: 90%;
+  animation: popIn .4s cubic-bezier(.175,.885,.32,1.275);
+}
+.modal .result-emoji { font-size: 4rem; margin-bottom: 10px; }
+.modal .result-name { font-size: 1.6rem; font-weight: 800; color: #6a8fa8; }
+.modal .result-cat { display: inline-block; padding: 4px 14px; border-radius: 12px; color: #fff; font-size: .8rem; margin: 8px 0; }
+.modal .nutri-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin: 16px 0;
+}
+.modal .nutri-item { text-align: center; }
+.modal .nutri-val { font-size: 1.2rem; font-weight: 700; color: #6a8fa8; }
+.modal .nutri-label { font-size: .7rem; color: #999; margin-top: 2px; }
+.modal .modal-actions { display: flex; gap: 10px; justify-content: center; }
+
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes popIn { from { transform: scale(.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+/* ====== Bottom Nav ====== */
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  background: rgba(255,255,255,.95);
+  backdrop-filter: blur(10px);
+  border-top: 1px solid #e8e8e8;
+  padding: 8px 0 env(safe-area-inset-bottom);
+  z-index: 50;
+  justify-content: center;
+  gap: 24px;
+}
+.nav-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 20px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: .7rem;
+  color: #999;
+  transition: all .2s;
+  border-radius: 12px;
+}
+.nav-btn .nav-icon { font-size: 1.4rem; }
+.nav-btn.active { color: #6a8fa8; background: #eef4f8; }
+.nav-btn:hover { color: #6a8fa8; }
+
+/* ====== Back button ====== */
+.back-row { margin-bottom: 12px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🍽️ byf今天吃什么</h1>
+  <p>实在不行吃水煮黑背鲈</p>
+</div>
+
+<div class="page-container">
+
+  <!-- ====== Wheel Page ====== -->
+  <div class="page active" id="pageWheel">
+    <div class="wheel-page">
+      <div class="category-filters" id="wheelCatFilters"></div>
+      <div class="wheel-container">
+        <div class="wheel-pointer"></div>
+        <canvas id="wheelCanvas" width="360" height="360"></canvas>
+      </div>
+      <button class="spin-btn" id="spinBtn" onclick="spinWheel()">🎯 开始旋转</button>
+      <div class="wheel-info" id="wheelInfo"></div>
+    </div>
+  </div>
+
+  <!-- ====== Menu Page ====== -->
+  <div class="page" id="pageMenu">
+    <div class="panel">
+      <h2>📋 菜单管理</h2>
+      <div class="category-filters" id="menuCatFilters"></div>
+
+      <div class="add-form" id="addForm">
+        <div class="row">
+          <input type="text" id="dishName" placeholder="菜名" maxlength="20">
+          <select id="dishCategory">
+            <option value="中餐">中餐</option><option value="西餐">西餐</option>
+            <option value="快餐">快餐</option><option value="小吃">小吃</option>
+            <option value="日料">日料</option><option value="韩料">韩料</option>
+            <option value="其他">其他</option>
+          </select>
+        </div>
+        <div class="row nutri-row">
+          <input type="number" id="dishCal" placeholder="热量(kcal)" min="0" value="300">
+          <input type="number" id="dishProtein" placeholder="蛋白质(g)" min="0" value="15">
+          <input type="number" id="dishFat" placeholder="脂肪(g)" min="0" value="10">
+          <input type="number" id="dishCarbs" placeholder="碳水(g)" min="0" value="35">
+        </div>
+        <button class="btn btn-primary" onclick="addDish()">➕ 添加到菜单</button>
+      </div>
+
+      <div class="import-row">
+        <button class="btn btn-secondary" onclick="document.getElementById('fileInput').click()">📂 导入 JSON</button>
+        <button class="btn btn-secondary" onclick="document.getElementById('csvInput').click()">📄 导入 CSV</button>
+        <input type="file" id="fileInput" accept=".json" hidden onchange="importJSON(event)">
+        <input type="file" id="csvInput" accept=".csv" hidden onchange="importCSV(event)">
+      </div>
+      <div class="import-row">
+        <button class="btn btn-secondary" onclick="exportMenu()">💾 导出菜单</button>
+        <button class="btn btn-danger" onclick="resetMenu()">🔄 恢复默认</button>
+      </div>
+
+      <div class="dish-list" id="dishList"></div>
+    </div>
+  </div>
+
+  <!-- ====== History Page ====== -->
+  <div class="page" id="pageHistory">
+    <div class="panel">
+      <h2>📅 历史记录</h2>
+      <div class="history-list" id="historyContent"></div>
+      <button class="btn btn-danger btn-sm" style="margin-top:10px;width:100%;" onclick="clearHistory()">🗑️ 清除历史</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- Bottom Navigation -->
+<nav class="bottom-nav">
+  <button class="nav-btn" onclick="switchPage('menu')" id="navMenu">
+    <span class="nav-icon">📋</span> 菜单
+  </button>
+  <button class="nav-btn active" onclick="switchPage('wheel')" id="navWheel">
+    <span class="nav-icon">🎡</span> 转盘
+  </button>
+  <button class="nav-btn" onclick="switchPage('history')" id="navHistory">
+    <span class="nav-icon">📅</span> 历史
+  </button>
+</nav>
+
+<!-- Result Modal -->
+<div class="modal-overlay" id="resultModal" style="display:none;">
+  <div class="modal">
+    <div class="result-emoji" id="resEmoji"></div>
+    <div class="result-name" id="resName"></div>
+    <div class="result-cat" id="resCat"></div>
+    <div class="nutri-grid">
+      <div class="nutri-item"><div class="nutri-val" id="resCal">-</div><div class="nutri-label">热量/kcal</div></div>
+      <div class="nutri-item"><div class="nutri-val" id="resProtein">-</div><div class="nutri-label">蛋白质/g</div></div>
+      <div class="nutri-item"><div class="nutri-val" id="resFat">-</div><div class="nutri-label">脂肪/g</div></div>
+      <div class="nutri-item"><div class="nutri-val" id="resCarbs">-</div><div class="nutri-label">碳水/g</div></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="closeModal()">👌 就吃这个</button>
+      <button class="btn btn-secondary" onclick="closeModal();spinWheel();">🔄 再转一次</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ==================== DATA LAYER ====================
+const CATEGORIES = ['全部', '中餐', '西餐', '快餐', '小吃', '日料', '韩料', '其他'];
+const CAT_COLORS = {
+  '中餐': '#8ba7c4', '西餐': '#96b8a8', '快餐': '#c4b896',
+  '小吃': '#c497a8', '日料': '#8b9dc4', '韩料': '#97b8a0', '其他': '#a0a8b0'
+};
+const CAT_EMOJIS = {
+  '中餐': '🥡', '西餐': '🍝', '快餐': '🍔',
+  '小吃': '🍢', '日料': '🍣', '韩料': '🥩', '其他': '🍽️'
+};
+
+const DEFAULT_DISHES = [
+  { name: '别吃了', category: '其他', calories: 0, protein: 0, fat: 0, carbs: 0, emoji: '🚫' },
+  { name: '水煮黑背鲈', category: '中餐', calories: 280, protein: 35, fat: 12, carbs: 6, emoji: '🐟' },
+  { name: '红烧排骨', category: '中餐', calories: 420, protein: 28, fat: 25, carbs: 18, emoji: '🍖' },
+  { name: '宫保鸡丁', category: '中餐', calories: 380, protein: 30, fat: 18, carbs: 22, emoji: '🍗' },
+  { name: '番茄炒蛋', category: '中餐', calories: 200, protein: 12, fat: 10, carbs: 15, emoji: '🍅' },
+  { name: '水煮鱼', category: '中餐', calories: 350, protein: 32, fat: 20, carbs: 8, emoji: '🐟' },
+  { name: '蛋炒饭', category: '中餐', calories: 450, protein: 15, fat: 14, carbs: 60, emoji: '🍚' },
+  { name: '意大利面', category: '西餐', calories: 480, protein: 18, fat: 14, carbs: 65, emoji: '🍝' },
+  { name: '牛排', category: '西餐', calories: 550, protein: 40, fat: 35, carbs: 3, emoji: '🥩' },
+  { name: '披萨', category: '西餐', calories: 600, protein: 25, fat: 28, carbs: 55, emoji: '🍕' },
+  { name: '汉堡', category: '快餐', calories: 550, protein: 28, fat: 30, carbs: 42, emoji: '🍔' },
+  { name: '炸鸡', category: '快餐', calories: 480, protein: 26, fat: 28, carbs: 28, emoji: '🍗' },
+  { name: '薯条', category: '快餐', calories: 380, protein: 4, fat: 18, carbs: 48, emoji: '🍟' },
+  { name: '麻辣烫', category: '小吃', calories: 350, protein: 20, fat: 18, carbs: 25, emoji: '🍲' },
+  { name: '煎饼果子', category: '小吃', calories: 280, protein: 10, fat: 8, carbs: 40, emoji: '🥞' },
+  { name: '烤串', category: '小吃', calories: 400, protein: 25, fat: 28, carbs: 10, emoji: '🍢' },
+  { name: '寿司', category: '日料', calories: 300, protein: 15, fat: 5, carbs: 45, emoji: '🍣' },
+  { name: '拉面', category: '日料', calories: 420, protein: 18, fat: 12, carbs: 55, emoji: '🍜' },
+  { name: '天妇罗', category: '日料', calories: 350, protein: 12, fat: 20, carbs: 30, emoji: '🍤' },
+  { name: '石锅拌饭', category: '韩料', calories: 480, protein: 20, fat: 15, carbs: 60, emoji: '🍚' },
+  { name: '韩式炸鸡', category: '韩料', calories: 520, protein: 30, fat: 32, carbs: 25, emoji: '🍗' },
+  { name: '辛拉面', category: '韩料', calories: 400, protein: 10, fat: 14, carbs: 55, emoji: '🍜' },
+  { name: '沙拉', category: '西餐', calories: 180, protein: 8, fat: 10, carbs: 15, emoji: '🥗' },
+  { name: '水饺', category: '中餐', calories: 350, protein: 18, fat: 14, carbs: 38, emoji: '🥟' },
+  { name: '小笼包', category: '小吃', calories: 280, protein: 14, fat: 12, carbs: 32, emoji: '🥟' },
+];
+
+function genId() { return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+
+function loadDishes() {
+  const raw = localStorage.getItem('wte_dishes');
+  if (!raw) return DEFAULT_DISHES.map((d,i) => ({ ...d, id: 'd' + i }));
+  try { return JSON.parse(raw); } catch { return DEFAULT_DISHES.map((d,i) => ({ ...d, id: 'd' + i })); }
+}
+
+function saveDishes(dishes) { localStorage.setItem('wte_dishes', JSON.stringify(dishes)); }
+
+function loadHistory() {
+  const raw = localStorage.getItem('wte_history');
+  if (!raw) return [];
+  try { return JSON.parse(raw); } catch { return []; }
+}
+
+function saveHistory(history) { localStorage.setItem('wte_history', JSON.stringify(history)); }
+
+let dishes = loadDishes();
+let history = loadHistory();
+let menuFilter = '全部';
+let wheelFilter = '全部';
+let isSpinning = false;
+let currentPage = 'wheel';
+
+// ==================== PAGE SWITCHING ====================
+function switchPage(page) {
+  currentPage = page;
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+
+  if (page === 'wheel') {
+    document.getElementById('pageWheel').classList.add('active');
+    document.getElementById('navWheel').classList.add('active');
+    drawWheel();
+  } else if (page === 'menu') {
+    document.getElementById('pageMenu').classList.add('active');
+    document.getElementById('navMenu').classList.add('active');
+    renderMenuCatFilters();
+    renderDishList();
+  } else if (page === 'history') {
+    document.getElementById('pageHistory').classList.add('active');
+    document.getElementById('navHistory').classList.add('active');
+    renderHistory();
+  }
+}
+
+// ==================== MENU MANAGEMENT ====================
+function renderMenuCatFilters() {
+  const container = document.getElementById('menuCatFilters');
+  if (!container) return;
+  container.innerHTML = CATEGORIES.map(c =>
+    `<span class="cat-tag${menuFilter === c ? ' active' : ''}" onclick="setMenuFilter('${c}')">${c === '全部' ? '🌐' : CAT_EMOJIS[c]} ${c}</span>`
+  ).join('');
+}
+
+function setMenuFilter(cat) {
+  menuFilter = cat;
+  renderMenuCatFilters();
+  renderDishList();
+}
+
+function addDish() {
+  const name = document.getElementById('dishName').value.trim();
+  if (!name) return alert('请输入菜名');
+  const dish = {
+    id: genId(),
+    name,
+    category: document.getElementById('dishCategory').value,
+    calories: parseInt(document.getElementById('dishCal').value) || 0,
+    protein: parseInt(document.getElementById('dishProtein').value) || 0,
+    fat: parseInt(document.getElementById('dishFat').value) || 0,
+    carbs: parseInt(document.getElementById('dishCarbs').value) || 0,
+    emoji: CAT_EMOJIS[document.getElementById('dishCategory').value],
+  };
+  dishes.push(dish);
+  saveDishes(dishes);
+  document.getElementById('dishName').value = '';
+  renderDishList();
+  renderWheelCatFilters();
+  updateWheelInfo();
+  drawWheel();
+}
+
+function deleteDish(id) {
+  dishes = dishes.filter(d => d.id !== id);
+  saveDishes(dishes);
+  renderDishList();
+  renderWheelCatFilters();
+  updateWheelInfo();
+  drawWheel();
+}
+
+function resetMenu() {
+  if (!confirm('确定要恢复默认菜单吗？当前菜单将被覆盖。')) return;
+  dishes = DEFAULT_DISHES.map((d,i) => ({ ...d, id: 'd' + i }));
+  saveDishes(dishes);
+  menuFilter = '全部';
+  renderMenuCatFilters();
+  renderDishList();
+  renderWheelCatFilters();
+  updateWheelInfo();
+  drawWheel();
+}
+
+function renderDishList() {
+  const container = document.getElementById('dishList');
+  if (!container) return;
+  const filtered = menuFilter === '全部' ? dishes : dishes.filter(d => d.category === menuFilter);
+  if (!filtered.length) {
+    container.innerHTML = '<div class="empty-hint">还没有菜品，快去添加吧~</div>';
+    return;
+  }
+  container.innerHTML = filtered.map(d => `
+    <div class="dish-item">
+      <div class="info">
+        <div class="name">${d.emoji} ${d.name}</div>
+        <div class="meta">🔥${d.calories}kcal | 🥩${d.protein}g | 🧈${d.fat}g | 🍚${d.carbs}g</div>
+      </div>
+      <span class="cat-badge" style="background:${CAT_COLORS[d.category]}">${d.category}</span>
+      <div class="actions">
+        <button class="btn btn-secondary btn-sm" onclick="deleteDish('${d.id}')">🗑️</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+// Import/Export
+function importJSON(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    try {
+      const data = JSON.parse(ev.target.result);
+      if (!Array.isArray(data)) throw new Error('格式错误');
+      const imported = data.map(d => ({
+        id: genId(),
+        name: d.name || '未知',
+        category: CATEGORIES.slice(1).includes(d.category) ? d.category : '其他',
+        calories: parseInt(d.calories) || 0,
+        protein: parseInt(d.protein) || 0,
+        fat: parseInt(d.fat) || 0,
+        carbs: parseInt(d.carbs) || 0,
+        emoji: d.emoji || CAT_EMOJIS[d.category] || '🍽️',
+      }));
+      dishes = [...dishes, ...imported];
+      saveDishes(dishes);
+      renderDishList();
+      renderWheelCatFilters();
+      updateWheelInfo();
+      drawWheel();
+      alert(`成功导入 ${imported.length} 道菜品！`);
+    } catch { alert('JSON 格式错误，请检查文件'); }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+}
+
+function importCSV(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    try {
+      const lines = ev.target.result.split('\n').filter(l => l.trim());
+      if (lines.length < 2) throw new Error('无数据');
+      const imported = [];
+      for (let i = 1; i < lines.length; i++) {
+        const cols = lines[i].split(',');
+        if (cols.length < 2) continue;
+        imported.push({
+          id: genId(),
+          name: cols[0]?.trim() || '未知',
+          category: CATEGORIES.slice(1).includes(cols[1]?.trim()) ? cols[1].trim() : '其他',
+          calories: parseInt(cols[2]) || 0,
+          protein: parseInt(cols[3]) || 0,
+          fat: parseInt(cols[4]) || 0,
+          carbs: parseInt(cols[5]) || 0,
+          emoji: cols[6]?.trim() || CAT_EMOJIS[cols[1]?.trim()] || '🍽️',
+        });
+      }
+      dishes = [...dishes, ...imported];
+      saveDishes(dishes);
+      renderDishList();
+      renderWheelCatFilters();
+      updateWheelInfo();
+      drawWheel();
+      alert(`成功导入 ${imported.length} 道菜品！`);
+    } catch { alert('CSV 格式错误，请检查文件格式：名称,分类,热量,蛋白质,脂肪,碳水,emoji'); }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+}
+
+function exportMenu() {
+  const blob = new Blob([JSON.stringify(dishes, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = '菜单_' + new Date().toISOString().slice(0,10) + '.json';
+  a.click();
+}
+
+// ==================== WHEEL ====================
+function getWheelDishes() {
+  const filtered = wheelFilter === '全部' ? dishes : dishes.filter(d => d.category === wheelFilter);
+  return filtered.length ? filtered : dishes;
+}
+
+function renderWheelCatFilters() {
+  const container = document.getElementById('wheelCatFilters');
+  if (!container) return;
+  container.innerHTML = CATEGORIES.map(c =>
+    `<span class="cat-tag${wheelFilter === c ? ' active' : ''}" onclick="setWheelFilter('${c}')">${c === '全部' ? '🌐' : CAT_EMOJIS[c]} ${c}</span>`
+  ).join('');
+}
+
+function setWheelFilter(cat) {
+  wheelFilter = cat;
+  renderWheelCatFilters();
+  drawWheel();
+  updateWheelInfo();
+}
+
+const PI = Math.PI;
+const TAU = 2 * PI;
+
+function drawWheel() {
+  const canvas = document.getElementById('wheelCanvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const wd = getWheelDishes();
+  const n = wd.length;
+  const cx = canvas.width / 2;
+  const cy = canvas.height / 2;
+  const r = Math.min(cx, cy) - 8;
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  ctx.beginPath();
+  ctx.arc(cx, cy, r + 4, 0, TAU);
+  ctx.fillStyle = '#555';
+  ctx.fill();
+
+  if (!n) {
+    ctx.fillStyle = '#ddd';
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, TAU);
+    ctx.fill();
+    ctx.fillStyle = '#999';
+    ctx.font = '16px "PingFang SC","Microsoft YaHei",sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('请先添加菜品', cx, cy);
+    return;
+  }
+
+  const sliceAngle = TAU / n;
+  for (let i = 0; i < n; i++) {
+    const start = -PI/2 + i * sliceAngle;
+    const end = start + sliceAngle;
+    const color = CAT_COLORS[wd[i].category] || '#a0a8b0';
+
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, r, start, end);
+    ctx.closePath();
+    ctx.fillStyle = i % 2 === 0 ? color : lightenColor(color, 15);
+    ctx.fill();
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    ctx.save();
+    ctx.translate(cx, cy);
+    const midAngle = start + sliceAngle / 2;
+    ctx.rotate(midAngle);
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 13px "PingFang SC","Microsoft YaHei",sans-serif';
+    ctx.shadowColor = 'rgba(0,0,0,.3)';
+    ctx.shadowBlur = 2;
+    const text = wd[i].emoji + ' ' + wd[i].name;
+    ctx.fillText(text.length > 6 ? text.slice(0,6)+'..' : text, r - 12, 5);
+    ctx.restore();
+  }
+
+  ctx.beginPath();
+  ctx.arc(cx, cy, 28, 0, TAU);
+  ctx.fillStyle = '#fff';
+  ctx.fill();
+  ctx.fillStyle = '#6a8fa8';
+  ctx.font = 'bold 14px "PingFang SC","Microsoft YaHei",sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('GO', cx, cy + 5);
+}
+
+function lightenColor(hex, percent) {
+  const num = parseInt(hex.slice(1), 16);
+  const r = Math.min(255, (num >> 16) + percent * 2);
+  const g = Math.min(255, ((num >> 8) & 0x00FF) + percent * 2);
+  const b = Math.min(255, (num & 0x0000FF) + percent * 2);
+  return '#' + (0x1000000 + r * 0x10000 + g * 0x100 + b).toString(16).slice(1);
+}
+
+function spinWheel() {
+  if (isSpinning) return;
+  const wd = getWheelDishes();
+  if (!wd.length) { alert('请先添加菜品！'); return; }
+
+  isSpinning = true;
+  document.getElementById('spinBtn').disabled = true;
+
+  const sliceAngle = TAU / wd.length;
+  const targetIndex = Math.floor(Math.random() * wd.length);
+  const spins = 5 + Math.floor(Math.random() * 5);
+  const totalRotation = spins * TAU + TAU - (targetIndex + 0.5) * sliceAngle;
+
+  const duration = 4000;
+  const startTime = performance.now();
+
+  function animate(now) {
+    const elapsed = now - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    const eased = 1 - Math.pow(1 - progress, 3);
+    const currentRotation = totalRotation * eased;
+
+    const canvas = document.getElementById('wheelCanvas');
+    canvas.style.transform = `rotate(${currentRotation}rad)`;
+
+    if (progress < 1) {
+      requestAnimationFrame(animate);
+    } else {
+      isSpinning = false;
+      document.getElementById('spinBtn').disabled = false;
+      showResult(wd[targetIndex]);
+      setTimeout(() => { canvas.style.transform = 'rotate(0rad)'; }, 300);
+    }
+  }
+  requestAnimationFrame(animate);
+}
+
+function showResult(dish) {
+  document.getElementById('resEmoji').textContent = dish.emoji;
+  document.getElementById('resName').textContent = dish.name;
+  document.getElementById('resCat').textContent = dish.category;
+  document.getElementById('resCat').style.background = CAT_COLORS[dish.category];
+  document.getElementById('resCal').textContent = dish.calories;
+  document.getElementById('resProtein').textContent = dish.protein;
+  document.getElementById('resFat').textContent = dish.fat;
+  document.getElementById('resCarbs').textContent = dish.carbs;
+  document.getElementById('resultModal').style.display = 'flex';
+
+  const today = new Date().toISOString().slice(0, 10);
+  history.unshift({
+    date: today,
+    dishId: dish.id,
+    dishName: dish.name,
+    dishEmoji: dish.emoji,
+    category: dish.category,
+    timestamp: Date.now(),
+  });
+  saveHistory(history);
+}
+
+function closeModal() {
+  document.getElementById('resultModal').style.display = 'none';
+}
+
+// ==================== HISTORY ====================
+function renderHistory() {
+  const container = document.getElementById('historyContent');
+  if (!container) return;
+  const today = new Date().toISOString().slice(0, 10);
+
+  if (!history.length) {
+    container.innerHTML = '<div class="empty-hint">还没有选择记录，转一次试试吧~</div>';
+    return;
+  }
+
+  const grouped = {};
+  history.forEach(h => {
+    if (!grouped[h.date]) grouped[h.date] = [];
+    grouped[h.date].push(h);
+  });
+
+  container.innerHTML = Object.entries(grouped).map(([date, items]) => `
+    <div class="history-group">
+      <div class="history-date">
+        📅 ${date} ${date === today ? '<span class="today-badge">今天</span>' : ''}
+      </div>
+      ${items.map(h => `
+        <div class="history-item">
+          <span class="emoji">${h.dishEmoji || '🍽️'}</span>
+          <span>${h.dishName}</span>
+          <span style="font-size:.7rem;color:#999;">${h.category}</span>
+        </div>
+      `).join('')}
+    </div>
+  `).join('');
+}
+
+function clearHistory() {
+  if (!confirm('确定清除所有历史记录吗？')) return;
+  history = [];
+  saveHistory(history);
+  renderHistory();
+}
+
+function updateWheelInfo() {
+  const wd = getWheelDishes();
+  const el = document.getElementById('wheelInfo');
+  if (el) el.textContent = '共 ' + wd.length + ' 道菜品，点击按钮开始旋转！';
+}
+
+// ==================== INIT ====================
+function init() {
+  renderWheelCatFilters();
+  drawWheel();
+  updateWheelInfo();
+  switchPage('wheel');
+}
+
+init();
+</script>
+
+</body>
+</html>
